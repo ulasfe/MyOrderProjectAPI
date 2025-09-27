@@ -1,0 +1,11 @@
+@MyOrderProjectAPI_HostAddress = http://localhost:5055
+
+GET {{MyOrderProjectAPI_HostAddress}}/todos/
+Accept: application/json
+
+###
+
+GET {{MyOrderProjectAPI_HostAddress}}/todos/1
+Accept: application/json
+
+###
