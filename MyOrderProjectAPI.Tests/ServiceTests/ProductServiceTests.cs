@@ -1,12 +1,8 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MyOrderProjectAPI.Services;
-using MyOrderProjectAPI.Models;
-using MyOrderProjectAPI.Tests.Base;
-using MyOrderProjectAPI.Tests.Base.MyOrderProjectAPI.Tests.Base;
-using System.Threading.Tasks;
-using Xunit;
 using MyOrderProjectAPI.DTOs;
+using MyOrderProjectAPI.Services;
+using MyOrderProjectAPI.Tests.Base;
 
 namespace MyOrderProjectAPI.Tests.ServiceTests
 {
@@ -17,6 +13,59 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
         public ProductServiceTests() : base()
         {
             _productService = new ProductService(_context);
+        }
+
+        [Fact]
+        public async Task GetProductByIdAsync_ShouldReturnNull_ForNonExistentId()
+        {
+            // Arrange
+            int nonExistentId = 999;
+
+            // Act
+            var result = await _productService.GetProductByIdAsync(nonExistentId);
+
+            // Assert: Ürün bulunamadığında null dönmeli.
+            result.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task UpdateProductAsync_ShouldReturnFalse_WhenProductNotFound()
+        {
+            // Arrange
+            int nonExistentId = 999;
+            var updateDto = new ProductCreateUpdateDTO { Name = "Geçersiz Ürün", CategoryId = 1 };
+
+            // Act
+            var result = await _productService.UpdateProductAsync(nonExistentId, updateDto);
+
+            // Assert: Güncellenecek ürün yoksa false dönmeli.
+            result.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task DeleteProductAsync_ShouldReturnFalse_WhenProductNotFound()
+        {
+            // Arrange
+            int nonExistentId = 999;
+
+            // Act
+            var result = await _productService.DeleteProductAsync(nonExistentId);
+
+            // Assert: Silinecek ürün yoksa false dönmeli.
+            result.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task RestoreProductAsync_ShouldReturnFalse_WhenProductNotFound()
+        {
+            // Arrange
+            int nonExistentId = 999;
+
+            // Act
+            var result = await _productService.RestoreProductAsync(nonExistentId);
+
+            // Assert: Geri yüklenecek ürün yoksa false dönmeli.
+            result.Should().BeFalse();
         }
         [Fact]
         public async Task CreateProductAsync_ShouldReturn()
@@ -33,6 +82,106 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
 
             productCRUDDto.Should().NotBeNull();
         }
+
+        [Fact]
+        public async Task CreateProductAsync_ShouldThrowDbUpdateException_OnForeignKeyViolation()
+        {
+            // Arrange: DbContext'in SaveChangesAsync metodunu, dış anahtar (FK) hatası fırlatacak şekilde mock'la
+            var invalidDto = new ProductCreateUpdateDTO
+            {
+                Name = "Yeni Ürün",
+                Price = 100,
+                StockQuantity = 10,
+                CategoryId = 999 // Var olmayan kategori ID'si
+            };
+
+            // Act & Assert
+            // Servis katmanının bu veritabanı hatasını Controller'a iletmesini bekleriz.
+            await Assert.ThrowsAsync<DbUpdateException>(
+                () => _productService.CreateProductAsync(invalidDto)
+            );
+        }
+
+        [Fact]
+        public async Task GetProductByIdAsync_ShouldReturnNull_WhenProductDoesNotExist()
+        {
+            // Arrange
+            int nonExistentId = 999;
+
+            // Act
+            var result = await _productService.GetProductByIdAsync(nonExistentId);
+
+            // Assert
+            result.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task GetProductByIdAsync_ShouldReturnNull_WhenProductIsSoftDeleted()
+        {
+            // Arrange
+            // BaseTest'te Product 1 (Id=1) aktif olarak eklenmiştir.
+            int productId = 1;
+
+            // Ürünü sil
+            await _productService.DeleteProductAsync(productId);
+
+            // Act: Normal Get metodu sadece RecordStatus=True olanları çekmeli
+            var result = await _productService.GetProductByIdAsync(productId);
+
+            // Assert: Soft Delete yapıldığı için null dönmelidir.
+            result.Should().BeNull();
+        }
+
+
+        [Fact]
+        public async Task UpdateProductAsync_ShouldReturnFalse_WhenProductToUpdateNotFound()
+        {
+            // Arrange
+            int nonExistentId = 999;
+            var updateDto = new ProductCreateUpdateDTO { Name = "Yeni İsim", CategoryId = 1 };
+
+            // Act
+            var result = await _productService.UpdateProductAsync(nonExistentId, updateDto);
+
+            // Assert
+            result.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task UpdateProductAsync_ShouldThrowDbUpdateException_OnForeignKeyViolation()
+        {
+            // Arrange
+            int existingId = 1;
+            var invalidDto = new ProductCreateUpdateDTO
+            {
+                Name = "FK Hata Ürünü",
+                Price = 100,
+                StockQuantity = 10,
+                CategoryId = 999 // Var olmayan kategori ID'si
+            };
+
+            // Act & Assert
+            // Product 1'i var olmayan bir kategoriye güncellemeye çalışıyoruz.
+            await Assert.ThrowsAsync<DbUpdateException>(
+                () => _productService.UpdateProductAsync(existingId, invalidDto)
+            );
+        }
+        [Fact]
+        public async Task DeleteProductAsync_ShouldReturnFalse_WhenProductIsAlreadyDeleted()
+        {
+            // Arrange
+            int productId = 1;
+
+            // Önce silme işlemini yap
+            await _productService.DeleteProductAsync(productId);
+
+            // Act: İkinci kez silmeye çalış
+            var result = await _productService.DeleteProductAsync(productId);
+
+            // Assert: Zaten silinmiş (RecordStatus=False) olduğu için false dönmeli.
+            result.Should().BeFalse();
+        }
+
 
         [Fact]
         public async Task SoftDeleteAsync_ValidId_ShouldSetRecordStatusToFalse()
@@ -88,7 +237,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
                 CategoryId = product.CategoryId
             };
 
-            var updatedProduct = await _productService.UpdateProductAsync(product.Id,toBeUpdateProduct);
+            var updatedProduct = await _productService.UpdateProductAsync(product.Id, toBeUpdateProduct);
 
             updatedProduct.Should().BeTrue();
 
@@ -97,7 +246,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
 
             product.Name.Should().Be("Güncellenen Ürün Adı");
             product.Price.Should().Be(100);
-            product.StockQuantity.Should().Be(4); 
+            product.StockQuantity.Should().Be(4);
 
         }
 
@@ -107,6 +256,33 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
             var allProducts = await _productService.GetAllProductsAsync();
 
             allProducts.Should().HaveCount(_context.Products.Where(k => k.RecordStatus).Count());
+        }
+
+        [Fact]
+        public async Task RestoreProductAsync_ShouldReturnFalse_WhenProductDoesNotExist()
+        {
+            // Arrange
+            int nonExistentId = 999;
+
+            // Act
+            var result = await _productService.RestoreProductAsync(nonExistentId);
+
+            // Assert
+            result.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task RestoreProductAsync_ShouldReturnFalse_WhenProductIsAlreadyActive()
+        {
+            // Arrange
+            // BaseTest'ten gelen Product 1 (Id=1) zaten aktif (RecordStatus=True)
+            int activeId = 1;
+
+            // Act
+            var result = await _productService.RestoreProductAsync(activeId);
+
+            // Assert: Zaten aktif olduğu için false dönmeli (hiçbir değişiklik yapılmadı).
+            result.Should().BeFalse();
         }
     }
 }

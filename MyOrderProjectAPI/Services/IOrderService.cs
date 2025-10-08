@@ -22,5 +22,7 @@ namespace MyOrderProjectAPI.Services
 
         // Ödeme işlemini tamamla
         Task<bool> ProcessPaymentAsync(int orderId, decimal amount, paymentMethod method);
+
+        Task<bool> RetrieveOrderAsync(int orderId);
     }
 }

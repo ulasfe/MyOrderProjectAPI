@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MyOrderProjectAPI.DTOs;
 using MyOrderProjectAPI.Services;
 
@@ -17,6 +17,7 @@ namespace MyOrderProjectAPI.Controller
             _productService = productService;
         }
 
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProductDetailDTO>>> GetProducts()
         {
@@ -24,6 +25,7 @@ namespace MyOrderProjectAPI.Controller
             return Ok(products); // 200 
         }
 
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<ProductDetailDTO>> GetProduct(int id)
         {
@@ -37,6 +39,7 @@ namespace MyOrderProjectAPI.Controller
             return Ok(product); // 200 
         }
 
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<ProductDetailDTO>> PostProduct([FromBody] ProductCreateUpdateDTO productDTO)
         {
@@ -58,6 +61,7 @@ namespace MyOrderProjectAPI.Controller
             }
         }
 
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProduct(int id, [FromBody] ProductCreateUpdateDTO productDTO)
         {
@@ -75,6 +79,7 @@ namespace MyOrderProjectAPI.Controller
 
             return NoContent(); // 204 
         }
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
@@ -87,13 +92,13 @@ namespace MyOrderProjectAPI.Controller
 
             return NoContent(); // 204
         }
-
+        [Authorize]
         [HttpPost("{id}/restore")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RestoreProduct(int id)
-        { 
+        {
             var success = await _productService.RestoreProductAsync(id);
 
             if (!success)

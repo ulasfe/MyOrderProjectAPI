@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using MyOrderProjectAPI.Data;
 using MyOrderProjectAPI.DTOs;
 using MyOrderProjectAPI.Extensions;
@@ -67,7 +66,7 @@ namespace MyOrderProjectAPI.Services
             }
             catch (DbUpdateException) // Veritabanı benzersizlik hatası
             {
-                throw new InvalidOperationException("Bu masa numarası zaten mevcut.");
+                throw new DbUpdateException("Bu masa numarası zaten mevcut.");
             }
 
             return await GetTableByIdAsync(table.Id) ?? throw new Exception("Masa oluşturulamadı.");
@@ -102,13 +101,23 @@ namespace MyOrderProjectAPI.Services
 
         public async Task<bool> DeleteTableAsync(int id)
         {
-            var table = await _context.Tables.FindAsync(id);
+            try
+            {
+                var table = await _context.Tables.FindAsync(id);
 
-            if (table is null) return false;
-            if (!table.RecordStatus) throw new InvalidOperationException($"Id değeri {id} olan masa {table.ModifyDate} tarihinde zaten silinmiş.");
-            _context.Tables.Remove(table);
-            await _context.SaveChangesAsync();
-            return true;
+                if (table is null) return false;
+                if (!table.RecordStatus) throw new DbUpdateException($"Id değeri {id} olan masa {table.ModifyDate} tarihinde zaten silinmiş.");
+                if (_context.Orders.Any(k => k.TableId == id && (k.Status == orderStatus.Acik || k.Status == orderStatus.Hazirlaniyor)))
+                    throw new DbUpdateException($"{id} id numaralı masanın siparişi bulunduğu için silinemez!");
+                _context.Tables.Remove(table);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+
+                throw new DbUpdateException("Masa silinirken bir hata oluştu!");
+            }
         }
 
         public async Task<bool> RestoreTableAsync(int id)
@@ -116,7 +125,8 @@ namespace MyOrderProjectAPI.Services
             var table = await _context.Tables.FindAsync(id);
 
             if (table is null) return false;
-            if(table.RecordStatus) throw new InvalidOperationException($"Id değeri {id} olan masa zaten aktif.");
+            if (table.RecordStatus) 
+                return false;
             _context.Restore(table);
             await _context.SaveChangesAsync();
             return true;

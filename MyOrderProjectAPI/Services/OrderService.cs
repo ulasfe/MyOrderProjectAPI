@@ -44,7 +44,7 @@ namespace MyOrderProjectAPI.Services
         {
             //Masa Durumu Kontrolü işlemi
             var table = await _context.Tables.FindAsync(orderDTO.TableId);
-            if (table == null || !table.RecordStatus ) throw new InvalidOperationException("Masa bulunamadı.");
+            if (table == null || !table.RecordStatus) throw new InvalidOperationException("Masa bulunamadı.");
 
             if (table.Status == Status.Dolu)
             {
@@ -65,6 +65,8 @@ namespace MyOrderProjectAPI.Services
             var orderItems = new List<OrderItem>();
 
             //Sipariş itemlerini oluştur ve stokları kontrol etme işlemi.
+            if (orderDTO.Items is null || orderDTO.Items.Count == 0)
+                throw new ArgumentException("Sipariş kalemleri olmadan sipariş oluşturamazsınız");
             foreach (var itemDTO in orderDTO.Items)
             {
                 var product = await _context.Products.FindAsync(itemDTO.ProductId);
@@ -147,7 +149,7 @@ namespace MyOrderProjectAPI.Services
                 .Include(o => o.Table)
                 .FirstOrDefaultAsync(o => o.Id == orderId);
 
-            if (order == null || order.Status == orderStatus.Kapali || order.Status == orderStatus.Kapali) return false;
+            if (order == null || order.Status == orderStatus.Iptal || order.Status == orderStatus.Kapali) return false;
 
             //Siparişin durumunu iptal olarak değiştir
             order.Status = orderStatus.Iptal;
@@ -214,11 +216,67 @@ namespace MyOrderProjectAPI.Services
             return await GetOrderByIdAsync(orderId) ?? throw new Exception("Ürünler eklenirken bir hata oluştu.");
         }
 
-       /// <summary>
-       /// Yardımcı ampleme işlemi için kullanlılır
-       /// </summary>
-       /// <param name="order">Model alır</param>
-       /// <returns>Data Transfer Object döndürür.</returns>
+        public async Task<bool> RetrieveOrderAsync(int orderId)
+        {
+            try
+            {
+
+                var order = await _context.Orders
+                    .Include(o => o.OrderItems)
+                    .Include(o => o.Table)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                // 1. Sipariş bulunamadıysa veya zaten Açık/Kapalı ise geri yüklenemez.
+                if (order == null || order.Status != orderStatus.Iptal)
+                {
+                    // Eğer zaten Açık veya Kapalı ise bir işlem yapmayız, ya da NotFound/Conflict fırlatılabilir.
+                    // Controller'a false dönelim ve Controller 404/409'u yönetsin.
+                    return false;
+                }
+
+                var originalStatus = order.Status;
+
+                // 2. Siparişin durumunu Açık olarak değiştir.
+                order.Status = orderStatus.Acik;
+
+                // 3. Stokları tekrar düş (Çünkü iptalde eklenmişti).
+                foreach (var item in order.OrderItems)
+                {
+                    var product = await _context.Products.FindAsync(item.ProductId);
+                    if (product != null)
+                    {
+                        // Stok kontrolü yapılması kritik! Yeterli stok yoksa exception fırlatılmalıdır.
+                        if (product.StockQuantity < item.Quantity)
+                        {
+                            order.Status = originalStatus;
+                            // Stok yetersizliği durumunda işlemi geri al, logla ve hata fırlat.
+                            throw new InvalidOperationException($"Sipariş geri yüklenirken, Ürün {product.Name} için yeterli stok ({item.Quantity}) bulunamadı. Geri yükleme iptal edildi.");
+                        }
+                        product.StockQuantity -= item.Quantity;
+                    }
+                }
+
+                // 4. Masanın durumunu tekrar Dolu olarak değiştir (Eğer Boş'sa).
+                if (order.Table != null && order.Table.Status == Status.Boş)
+                {
+                    order.Table.Status = Status.Dolu;
+                }
+
+                await _context.SaveChangesAsync();
+                return true;
+
+            }
+            catch (InvalidOperationException)
+            {
+                throw new InvalidOperationException("Sipariş geri alınırken bir hata oluştu!");
+            }
+        }
+
+        /// <summary>
+        /// Yardımcı ampleme işlemi için kullanlılır
+        /// </summary>
+        /// <param name="order">Model alır</param>
+        /// <returns>Data Transfer Object döndürür.</returns>
         private static OrderDetailsDTO MapToOrderDetailsDTO(Order order)
         {
             return new OrderDetailsDTO

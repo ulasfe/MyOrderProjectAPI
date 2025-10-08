@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-
-namespace MyOrderProjectAPI.Controller
+﻿namespace MyOrderProjectAPI.Controller
 {
     using global::MyOrderProjectAPI.DTOs;
     using global::MyOrderProjectAPI.Models;
     using global::MyOrderProjectAPI.Services;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.EntityFrameworkCore;
 
     namespace MyOrderProjectAPI.Controllers
     {
@@ -21,7 +21,7 @@ namespace MyOrderProjectAPI.Controller
                 _tableService = tableService;
             }
 
-            
+            [Authorize]
             [HttpGet]
             public async Task<ActionResult<IEnumerable<TableDetailDTO>>> GetTables()
             {
@@ -29,6 +29,7 @@ namespace MyOrderProjectAPI.Controller
                 return Ok(tables); // 200 
             }
 
+            [Authorize]
             [HttpGet("{id}")]
             public async Task<ActionResult<TableDetailDTO>> GetTable(int id)
             {
@@ -42,6 +43,7 @@ namespace MyOrderProjectAPI.Controller
                 return Ok(table); // 200 
             }
 
+            [Authorize]
             [HttpPost]
             public async Task<ActionResult<TableDetailDTO>> PostTable([FromBody] TableCreateUpdateDTO tableDTO)
             {
@@ -57,8 +59,8 @@ namespace MyOrderProjectAPI.Controller
                     // 201 response code ve URI döndürme işlemi
                     return CreatedAtAction(nameof(GetTable), new { id = newTable.Id }, newTable);
                 }
-                catch (InvalidOperationException ex)
-                { 
+                catch (DbUpdateException ex)
+                {
                     return Conflict(new { message = "Veritabanında yeni oluşturulurken bir hata oluştu", ex.Message }); // 409 
                 }
                 catch (Exception)
@@ -67,12 +69,13 @@ namespace MyOrderProjectAPI.Controller
                 }
             }
 
+            [Authorize]
             [HttpPut("{id}")]
             public async Task<IActionResult> PutTable(int id, [FromBody] TableCreateUpdateDTO tableDTO)
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState); 
+                    return BadRequest(ModelState);
                 }
 
                 var success = await _tableService.UpdateTableAsync(id, tableDTO);
@@ -82,9 +85,10 @@ namespace MyOrderProjectAPI.Controller
                     return NotFound();
                 }
 
-                return NoContent(); 
+                return NoContent();
             }
 
+            [Authorize]
             [HttpPatch("{id}/status")]
             public async Task<IActionResult> UpdateStatus(int id, [FromBody] Status newStatus)
             {
@@ -106,6 +110,7 @@ namespace MyOrderProjectAPI.Controller
                 }
             }
 
+            [Authorize]
             [HttpDelete("{id}")]
             public async Task<IActionResult> DeleteTable(int id)
             {
@@ -118,7 +123,7 @@ namespace MyOrderProjectAPI.Controller
                         return NotFound(new { message = $"ID'si {id} olan masa bulunamadı." });
                     }
                 }
-                catch (InvalidOperationException ex)
+                catch (DbUpdateException ex)
                 {
                     return StatusCode(500, new { message = $"Id değeri {id} olan kayıt siliniken bir hata oluştu.", error = ex.Message });
                 }
@@ -127,6 +132,7 @@ namespace MyOrderProjectAPI.Controller
                 return NoContent(); // 204 No Content
             }
 
+            [Authorize]
             [HttpPost("{id}/restore")]
             [ProducesResponseType(StatusCodes.Status204NoContent)]
             [ProducesResponseType(StatusCodes.Status404NotFound)]

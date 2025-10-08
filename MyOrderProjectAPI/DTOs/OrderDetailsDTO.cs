@@ -8,8 +8,8 @@ namespace MyOrderProjectAPI.DTOs
         public string OrderNumber { get; set; } = string.Empty;
         public DateTime OrderDate { get; set; }
         public int TableId { get; set; }
-        public string TableNumber { get; set; } = string.Empty; 
-        public orderStatus Status { get; set; } =  orderStatus.Kapali;
+        public string TableNumber { get; set; } = string.Empty;
+        public orderStatus Status { get; set; } = orderStatus.Kapali;
         public decimal TotalAmount { get; set; }
         public List<OrderItemDetailDTO> Items { get; set; } = new List<OrderItemDetailDTO>();
         public List<PaymentDetailDTO> Payments { get; set; } = new List<PaymentDetailDTO>();

@@ -1,9 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using MyOrderProjectAPI.Data;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MyOrderProjectAPI.DTOs;
-using MyOrderProjectAPI.Extensions;
-using MyOrderProjectAPI.Models;
+using MyOrderProjectAPI.Services;
 
 namespace MyOrderProjectAPI.Controller
 {
@@ -12,57 +10,40 @@ namespace MyOrderProjectAPI.Controller
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-
-        public CategoriesController(ApplicationDbContext context)
+        private readonly ICategoryService _categoryService;
+        public CategoriesController(ICategoryService categoryService)
         {
-            _context = context;
+            _categoryService = categoryService;
         }
 
+        [Authorize]
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<CategoryDTO>> PostCategory(CategoryCreateDTO categoryDTO)
         {
-            if (string.IsNullOrWhiteSpace(categoryDTO.Name))
+            try
             {
-                return BadRequest(new { message = "Kategori adı boş olamaz." });
+                var createdCategoryDTO = await _categoryService.CreateCategoryAsync(categoryDTO);
+
+                return CreatedAtAction(nameof(GetCategory), new { id = createdCategoryDTO.Id }, createdCategoryDTO);
             }
-            var category = new Category
+            catch (ArgumentException ex)
             {
-                Name = categoryDTO.Name
-            };
-
-            //Aynı isimde başka bir kayıt var mı kontrol et.
-            var exists = await _context.Categories
-                                       .AnyAsync(c => c.Name.ToLower() == category.Name.ToLower());
-            if (exists)
-            {
-                return Conflict(new { message = "Bu kategori zaten mevcut." });
+                return BadRequest(new { message = ex.Message });
             }
-
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
-
-            var createdCategoryDTO = new CategoryDTO
+            catch (InvalidOperationException ex)
             {
-                Id = category.Id,
-                Name = category.Name
-            };
-
-            return CreatedAtAction(nameof(GetCategory), new { id = createdCategoryDTO.Id }, createdCategoryDTO);
+                return Conflict(new { message = ex.Message }); // Kategori zaten mevcut hatası
+            }
         }
 
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategories()
         {
-            return await _context.Categories
-                .Select(c => new CategoryDTO
-                {
-                    Id = c.Id,
-                    Name = c.Name
-                })
-                .ToListAsync();
+            var categories = await _categoryService.GetAllCategoriesAsync();
+            return Ok(categories);
         }
 
         [HttpGet("{id}")]
@@ -70,73 +51,53 @@ namespace MyOrderProjectAPI.Controller
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<CategoryDTO>> GetCategory(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
 
-            if (category == null)
+            var categoryDTO = await _categoryService.GetCategoryByIdAsync(id);
+
+            if (categoryDTO == null)
             {
                 return NotFound();
-            } 
+            }
 
-            var categoryDTO = new CategoryDTO
-            {
-                Id = category.Id,
-                Name = category.Name
-            };
-
-            return categoryDTO;
+            return Ok(categoryDTO);
         }
 
+        [Authorize]
         [HttpPost("{id}/restore")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RestoreCategory(int id)
         {
-            //Kaydı bulmak için Global Query Filter'ı yoksaymamız gerekiyor
-            //çünkü Global Query Filter ile RecordStatus durumu aktif olmayanlar (Soft Deletion işlemi ile silinen kategoriler) çekilemeyecek.
-            var category = await _context.Categories
-                                         .IgnoreQueryFilters()
-                                         .FirstOrDefaultAsync(c => c.Id == id);
+            var result = await _categoryService.RestoreCategoryAsync(id);
 
-            if (category == null)
+            if (!result)
             {
-                return NotFound(new { message = $"ID'si {id} olan kategori bulunamadı." });
-            }
+                var category = await _categoryService.GetCategoryByIdAsync(id);
+                if (category == null) return NotFound(new { message = $"ID'si {id} olan kategori bulunamadı." });
 
-            if (category.RecordStatus == true)
-            {
                 return BadRequest(new { message = $"ID'si {id} olan kategori zaten aktif durumda." });
             }
 
-            _context.Restore(category);
-            await _context.SaveChangesAsync();
-
-            return NoContent(); //204 
+            return NoContent();
         }
 
+        [Authorize]
         [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            var category = await _context.Categories.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
+            var result = await _categoryService.SoftDeleteCategoryAsync(id);
 
-
-
-            if (category == null)
+            if (!result)
             {
-                return NotFound(new { message = $"ID'si {id} olan kategori bulunamadı." });
-            }
-            else if (category.RecordStatus == false)
-            {
-                return BadRequest(new { message = $"ID'si {id} olan {category.Name} adlı kategori zaten {category.ModifyDate} tarihinde silinmiş." });
+                // SoftDeleteCategoryAsync false döndürüyorsa ya bulunamamıştır ya da zaten silinmiştir.
+                // Bu durumda (basit tutmak için) sadece NotFound dönelim ve detay hata mesajı serviste kalsın.
+                return NotFound(new { message = $"ID'si {id} olan kategori bulunamadı veya zaten silinmiş." });
             }
 
-            //Gerçek silme yerine soft deletion işlemi yapılacak.
-            _context.Categories.Remove(category);
-            await _context.SaveChangesAsync();
-
-            return NoContent(); // 204
+            return NoContent();
         }
     }
 }

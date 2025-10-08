@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MyOrderProjectAPI.DTOs;
-using MyOrderProjectAPI.Models;
 using MyOrderProjectAPI.Services;
-using System.ComponentModel.DataAnnotations;
 
 namespace MyOrderProjectAPI.Controller
 {
+
     [Route("api/[controller]")]
     [ApiController]
     public class OrdersController : ControllerBase
@@ -18,6 +18,7 @@ namespace MyOrderProjectAPI.Controller
         }
 
         //Tüm aktif siparişleri görüntüleme işlemi
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OrderDetailsDTO>>> GetActiveOrders()
         {
@@ -25,7 +26,8 @@ namespace MyOrderProjectAPI.Controller
             return Ok(orders); // 200 OK
         }
 
-       //Tek bir sipariş getirme işlemi
+        //Tek bir sipariş getirme işlemi
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<OrderDetailsDTO>> GetOrder(int id)
         {
@@ -39,7 +41,8 @@ namespace MyOrderProjectAPI.Controller
             return Ok(order); // 200 OK
         }
 
-       //Yeni sipariş oluşturma
+        //Yeni sipariş oluşturma
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<OrderDetailsDTO>> CreateOrder([FromBody] OrderCreateDTO orderDTO)
         {
@@ -67,8 +70,9 @@ namespace MyOrderProjectAPI.Controller
             }
         }
 
-       
+
         //Siparişe ürün ekleme
+        [Authorize]
         [HttpPut("{id}/items")]
         public async Task<IActionResult> AddItems(int id, [FromBody] List<OrderItemDTO> items)
         {
@@ -94,8 +98,9 @@ namespace MyOrderProjectAPI.Controller
             }
         }
 
-        
+
         //sipariş iptal işlemi
+        [Authorize]
         [HttpPost("{id}/cancel")]
         public async Task<IActionResult> CancelOrder(int id)
         {
@@ -109,8 +114,11 @@ namespace MyOrderProjectAPI.Controller
             return NoContent(); // 204
         }
 
+
+
         //Ödeme işlemi
         [HttpPost("{id}/pay")]
+        [Authorize]
         public async Task<IActionResult> ProcessPayment(int id, [FromBody] PaymentRequestDTO paymentDTO)
         {
             if (!ModelState.IsValid)
@@ -128,13 +136,5 @@ namespace MyOrderProjectAPI.Controller
             return NoContent(); // 204 
         }
     }
-    public class PaymentRequestDTO
-    {
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Ödeme miktarı 0'dan büyük olmalıdır.")]
-        public decimal Amount { get; set; }
 
-        [Required]
-        public paymentMethod PaymentMethod { get; set; } = paymentMethod.Nakit;
-    }
 }

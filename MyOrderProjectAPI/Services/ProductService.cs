@@ -34,7 +34,6 @@ namespace MyOrderProjectAPI.Services
         public async Task<ProductDetailDTO?> GetProductByIdAsync(int id)
         {
             var productDetaidDTO = await _context.Products
-                .IgnoreQueryFilters()
                 .Include(p => p.Category)
                 .Where(p => p.Id == id)
                 .Select(p => new ProductDetailDTO
@@ -53,19 +52,28 @@ namespace MyOrderProjectAPI.Services
 
         public async Task<ProductDetailDTO> CreateProductAsync(ProductCreateUpdateDTO productDTO)
         {
-            var product = new Product
+            try
             {
-                Name = productDTO.Name,
-                Price = productDTO.Price,
-                StockQuantity = productDTO.StockQuantity,
-                CategoryId = productDTO.CategoryId
-            };
+                var product = new Product
+                {
+                    Name = productDTO.Name,
+                    Price = productDTO.Price,
+                    StockQuantity = productDTO.StockQuantity,
+                    CategoryId = productDTO.CategoryId
+                };
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
+                _context.Products.Add(product);
+                await _context.SaveChangesAsync();
 
-            var createdProduct = await GetProductByIdAsync(product.Id);
-            return createdProduct!; // null olmamalı
+                var createdProduct = await GetProductByIdAsync(product.Id);
+                return createdProduct!; // null olmamalı
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
         }
 
 

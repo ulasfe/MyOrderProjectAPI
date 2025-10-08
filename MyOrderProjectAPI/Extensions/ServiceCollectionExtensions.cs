@@ -28,7 +28,7 @@ namespace MyOrderProjectAPI.Extensions
                 //Eğer hem interface hem de uygulama varsa Scoped olarak kaydet.
                 if (serviceInterface != null)
                 {
-                    services.AddScoped(serviceInterface, implementation); 
+                    services.AddScoped(serviceInterface, implementation);
                 }
             }
 

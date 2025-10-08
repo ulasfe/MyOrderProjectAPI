@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
-using Newtonsoft.Json.Converters;
+﻿using Newtonsoft.Json.Converters;
 using System.Text.Json.Serialization;
 
 namespace MyOrderProjectAPI.Models
@@ -15,7 +14,7 @@ namespace MyOrderProjectAPI.Models
 
         public orderStatus Status { get; set; } = orderStatus.Acik;
 
-        public decimal TotalAmount { get; set; } 
+        public decimal TotalAmount { get; set; }
 
         //Foreign key
         public int TableId { get; set; }

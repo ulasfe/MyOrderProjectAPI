@@ -1,9 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MyOrderProjectAPI.Commons;
 using MyOrderProjectAPI.Models;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Reflection.Emit;
 
 namespace MyOrderProjectAPI.Data
 {
@@ -45,8 +43,8 @@ namespace MyOrderProjectAPI.Data
                 else if (entityEntry.State == EntityState.Deleted)
                 {
                     // Soft Deletion işlemi için silme işlemi yerine update işlemi yap.
-                    entityEntry.State = EntityState.Modified; 
-                    entity.RecordStatus = false;             
+                    entityEntry.State = EntityState.Modified;
+                    entity.RecordStatus = false;
                     entity.ModifyDate = now;
                 }
             }
@@ -69,14 +67,14 @@ namespace MyOrderProjectAPI.Data
 
             modelBuilder.Entity<Order>()
                .Property(o => o.TotalAmount)
-               .HasColumnType("decimal(10, 2)"); 
+               .HasColumnType("decimal(10, 2)");
 
             modelBuilder.Entity<Payment>()
                 .Property(p => p.Amount)
                 .HasColumnType("decimal(10, 2)")
                 .IsRequired();
 
-           
+
             modelBuilder.Entity<Table>()
                 .HasIndex(t => t.TableNumber)
                 .IsUnique();
