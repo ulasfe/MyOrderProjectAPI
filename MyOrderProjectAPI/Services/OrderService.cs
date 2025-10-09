@@ -177,9 +177,13 @@ namespace MyOrderProjectAPI.Services
         public async Task<OrderDetailsDTO?> AddItemsToOrderAsync(int orderId, List<OrderItemDTO> newItems)
         {
 
-            var orderDTO = await _context.Orders.FindAsync(orderId);
+            var orderDTO = await _context.Orders
+                .Include(o => o.Table)        // Masayı zorunlu yükle
+                .Include(o => o.OrderItems)   // Sipariş kalemlerini zorunlu yükle
+                .FirstOrDefaultAsync(o => o.Id == orderId);
             if (orderDTO == null) throw new InvalidOperationException("Sipariş bulunamadı.");
 
+            if (orderDTO.Table == null) throw new InvalidDataException($"{orderId} id değerli sipariş kaydına ait herhangi bir masa bulunmamaktadır!");
             if (orderDTO.Table.Status is not Status.Dolu) throw new InvalidOperationException($"{orderId} id numaralı siparişin masa durumu dolu olması gerekirken {orderDTO.Table.Status.ToString()} olarak görünüyor.");
 
             decimal totalAmount = orderDTO.TotalAmount;

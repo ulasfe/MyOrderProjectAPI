@@ -5,6 +5,7 @@ using MyOrderProjectAPI.Services;
 
 namespace MyOrderProjectAPI.Controller
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ProductsController : ControllerBase
@@ -17,7 +18,7 @@ namespace MyOrderProjectAPI.Controller
             _productService = productService;
         }
 
-        [Authorize]
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProductDetailDTO>>> GetProducts()
         {
@@ -25,7 +26,7 @@ namespace MyOrderProjectAPI.Controller
             return Ok(products); // 200 
         }
 
-        [Authorize]
+
         [HttpGet("{id}")]
         public async Task<ActionResult<ProductDetailDTO>> GetProduct(int id)
         {
@@ -39,7 +40,7 @@ namespace MyOrderProjectAPI.Controller
             return Ok(product); // 200 
         }
 
-        [Authorize]
+
         [HttpPost]
         public async Task<ActionResult<ProductDetailDTO>> PostProduct([FromBody] ProductCreateUpdateDTO productDTO)
         {
@@ -49,19 +50,15 @@ namespace MyOrderProjectAPI.Controller
                 return BadRequest(ModelState); // 400
             }
 
-            try
-            {
-                var newProduct = await _productService.CreateProductAsync(productDTO);
+            // DÜZELTME: Try-catch bloğu kaldırıldı.
+            // Oluşabilecek tüm hatalar (iş mantığı veya beklenmedik hatalar)
+            // Global Exception Handler'a fırlatılacaktır.
+            var newProduct = await _productService.CreateProductAsync(productDTO);
 
-                return CreatedAtAction(nameof(GetProduct), new { id = newProduct.Id }, newProduct); // 201 ve URI değeri 
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = "Ürün oluşturulurken bir hata oluştu.", error = ex.Message });
-            }
+            return CreatedAtAction(nameof(GetProduct), new { id = newProduct.Id }, newProduct); // 201 ve URI değeri 
         }
 
-        [Authorize]
+
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProduct(int id, [FromBody] ProductCreateUpdateDTO productDTO)
         {
@@ -79,7 +76,7 @@ namespace MyOrderProjectAPI.Controller
 
             return NoContent(); // 204 
         }
-        [Authorize]
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
@@ -92,7 +89,7 @@ namespace MyOrderProjectAPI.Controller
 
             return NoContent(); // 204
         }
-        [Authorize]
+
         [HttpPost("{id}/restore")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

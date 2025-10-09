@@ -5,7 +5,7 @@ using MyOrderProjectAPI.Services;
 
 namespace MyOrderProjectAPI.Controller
 {
-
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class OrdersController : ControllerBase
@@ -18,7 +18,7 @@ namespace MyOrderProjectAPI.Controller
         }
 
         //Tüm aktif siparişleri görüntüleme işlemi
-        [Authorize]
+        
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OrderDetailsDTO>>> GetActiveOrders()
         {
@@ -27,7 +27,7 @@ namespace MyOrderProjectAPI.Controller
         }
 
         //Tek bir sipariş getirme işlemi
-        [Authorize]
+        
         [HttpGet("{id}")]
         public async Task<ActionResult<OrderDetailsDTO>> GetOrder(int id)
         {
@@ -42,7 +42,7 @@ namespace MyOrderProjectAPI.Controller
         }
 
         //Yeni sipariş oluşturma
-        [Authorize]
+    
         [HttpPost]
         public async Task<ActionResult<OrderDetailsDTO>> CreateOrder([FromBody] OrderCreateDTO orderDTO)
         {
@@ -51,28 +51,18 @@ namespace MyOrderProjectAPI.Controller
                 return BadRequest(ModelState); // 400 
             }
 
-            try
-            {
-                var newOrder = await _orderService.CreateOrderAsync(orderDTO);
+            // DÜZELTME: Try-catch bloğu kaldırıldı. 
+            // İş mantığı hataları (InvalidOperationException) ve beklenmedik hatalar
+            // Global Exception Handler'a fırlatılacaktır.
+            var newOrder = await _orderService.CreateOrderAsync(orderDTO);
 
-                // Başarılı oluşturma
-                return CreatedAtAction(nameof(GetOrder), new { id = newOrder.Id }, newOrder);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Masa bulunamadı, stok yetersiz veya masa dolu hatası
-                return Conflict(new { message = ex.Message }); // 409 
-            }
-            catch (Exception ex)
-            {
-                // Diğer beklenmedik hatalar
-                return StatusCode(500, new { message = "Sipariş oluşturulurken beklenmedik bir hata oluştu.", error = ex.Message });
-            }
+            // Başarılı oluşturma
+            return CreatedAtAction(nameof(GetOrder), new { id = newOrder.Id }, newOrder);
         }
 
 
         //Siparişe ürün ekleme
-        [Authorize]
+        
         [HttpPut("{id}/items")]
         public async Task<IActionResult> AddItems(int id, [FromBody] List<OrderItemDTO> items)
         {
@@ -81,26 +71,21 @@ namespace MyOrderProjectAPI.Controller
                 return BadRequest("Eklenmek istenen ürünler boş olamaz.");
             }
 
-            try
-            {
-                var updatedOrder = await _orderService.AddItemsToOrderAsync(id, items);
+            // DÜZELTME: Try-catch bloğu kaldırıldı. 
+            // İş mantığı hataları (InvalidOperationException) Global Exception Handler'a fırlatılacaktır.
+            var updatedOrder = await _orderService.AddItemsToOrderAsync(id, items);
 
-                if (updatedOrder == null)
-                {
-                    return NotFound();
-                }
-
-                return Ok(updatedOrder);// 200
-            }
-            catch (InvalidOperationException ex)
+            if (updatedOrder == null)
             {
-                return Conflict(new { message = ex.Message });
+                return NotFound();
             }
+
+            return Ok(updatedOrder);// 200
         }
 
 
         //sipariş iptal işlemi
-        [Authorize]
+        
         [HttpPost("{id}/cancel")]
         public async Task<IActionResult> CancelOrder(int id)
         {
@@ -118,7 +103,7 @@ namespace MyOrderProjectAPI.Controller
 
         //Ödeme işlemi
         [HttpPost("{id}/pay")]
-        [Authorize]
+        
         public async Task<IActionResult> ProcessPayment(int id, [FromBody] PaymentRequestDTO paymentDTO)
         {
             if (!ModelState.IsValid)

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using MyOrderProjectAPI.DTOs;
+using MyOrderProjectAPI.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -11,14 +12,15 @@ namespace MyOrderProjectAPI.Controller
     [ApiController]
     public class AuthController : ControllerBase
     {
+        private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
         // NOT: Gerçek projede ApplicationDbContext yerine UserService kullanılmalıdır!
         // private readonly IUserService _userService; 
 
-        public AuthController(IConfiguration configuration /*, IUserService userService */)
+        public AuthController(IConfiguration configuration, IUserService userService)
         {
+            _userService = userService;
             _configuration = configuration;
-            // _userService = userService;
         }
 
         [HttpPost("login")]
@@ -26,25 +28,56 @@ namespace MyOrderProjectAPI.Controller
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<AuthResultDTO>> Login([FromBody] LoginDTO credentials)
         {
-            // ----------------------------------------------------------------------
-            // ADIM 1: Kullanıcı Kimlik Doğrulaması (Gerçek DB Kontrolü)
-            // ----------------------------------------------------------------------
-
-            // Gerçek uygulamada, kullanıcı adı ve şifrenin DB'de doğrulanması gerekir.
-            // ÖRNEK BASİT KONTROL:
-            if (credentials.Username != "testuser" || credentials.Password != "password")
+            if (!ModelState.IsValid)
             {
-                // Eğer kimlik doğrulama başarısız olursa 401 döndürülür
-                return Unauthorized(new { message = "Kullanıcı adı veya şifre hatalı." });
+                return BadRequest(ModelState); // 400
             }
+            // GÜVENLİK DÜZELTİLDİ: Artık manuel kontrol YOK, servis kullanılıyor
+            var user = await _userService.AuthenticateUserAsync(credentials.Username, credentials.Password);
 
-            // ----------------------------------------------------------------------
-            // ADIM 2: Token'ı Oluşturma ve Döndürme
-            // ----------------------------------------------------------------------
+            if (user == null)
+            {
+                // Kimlik doğrulama başarısız (Kullanıcı adı veya şifre yanlış)
+                return Unauthorized(new { message = "Kullanıcı adı veya şifre yanlış." }); // 401
+            }
 
             var tokenResult = GenerateJwtToken(credentials.Username, new List<string> { "User" });
 
             return Ok(tokenResult);
+        }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDTO registerDTO)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState); // 400 Geçersiz Veri
+            }
+
+            try
+            {
+                var newUser = await _userService.RegisterUserAsync(registerDTO);
+
+                if (newUser == null)
+                {
+                    // Kullanıcı adı zaten sistemde mevcut
+                    return Conflict(new { message = $"Kullanıcı adı '{registerDTO.Username}' zaten sistemde mevcut." }); // 409 Conflict
+                }
+
+                // Başarılı Kayıt: 201 Created
+                // Güvenlik nedeniyle şifre ve hash bilgileri döndürülmez.
+                return StatusCode(201, new
+                {
+                    Message = "Kullanıcı başarıyla oluşturuldu.",
+                    Username = newUser.Username,
+                    Role = newUser.Role.ToString()
+                });
+            }
+            catch (Exception ex)
+            {
+                // Beklenmedik veritabanı veya sunucu hataları
+                return StatusCode(500, new { message = "Kayıt işlemi sırasında beklenmedik bir hata oluştu.", error = ex.Message });
+            }
         }
 
         // ----------------------------------------------------------------------
@@ -81,6 +114,35 @@ namespace MyOrderProjectAPI.Controller
                 Expiration = expiryTime,
                 Username = username
             };
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var success = await _userService.SoftDeleteUserAsync(id);
+
+            if (!success)
+            {
+                // Kullanıcı ya bulunamadı (404) ya da zaten silinmişti.
+                return NotFound($"ID {id} numaralı kullanıcı bulunamadı veya zaten silinmiş."); // 404
+            }
+
+            return NoContent(); // 204 Başarılı Silme (İçerik Yok)
+        }
+
+        // Kullanıcıyı Geri Yükleme (Restore)
+        [HttpPost("{id}/restore")]
+        public async Task<IActionResult> RestoreUser(int id)
+        {
+            var success = await _userService.RestoreUserAsync(id);
+
+            if (!success)
+            {
+                // Kullanıcı ya bulunamadı (404) ya da zaten aktif durumdaydı.
+                return NotFound($"ID {id} numaralı kullanıcı bulunamadı veya zaten aktif."); // 404
+            }
+
+            return NoContent(); // 204 Başarılı Geri Yükleme
         }
     }
 }

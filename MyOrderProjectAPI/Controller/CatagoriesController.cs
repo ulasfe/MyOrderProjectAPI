@@ -5,7 +5,7 @@ using MyOrderProjectAPI.Services;
 
 namespace MyOrderProjectAPI.Controller
 {
-
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class CategoriesController : ControllerBase
@@ -16,29 +16,21 @@ namespace MyOrderProjectAPI.Controller
             _categoryService = categoryService;
         }
 
-        [Authorize]
+       
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<CategoryDTO>> PostCategory(CategoryCreateDTO categoryDTO)
         {
-            try
-            {
-                var createdCategoryDTO = await _categoryService.CreateCategoryAsync(categoryDTO);
+            // DÜZELTME: Try-catch bloğu kaldırıldı.
+            // ArgumentException, InvalidOperationException ve diğer tüm hatalar
+            // artık Global Exception Handler'a fırlatılacak.
+            var createdCategoryDTO = await _categoryService.CreateCategoryAsync(categoryDTO);
 
-                return CreatedAtAction(nameof(GetCategory), new { id = createdCategoryDTO.Id }, createdCategoryDTO);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new { message = ex.Message }); // Kategori zaten mevcut hatası
-            }
+            return CreatedAtAction(nameof(GetCategory), new { id = createdCategoryDTO.Id }, createdCategoryDTO);
         }
 
-        [Authorize]
+       
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategories()
         {
@@ -62,7 +54,7 @@ namespace MyOrderProjectAPI.Controller
             return Ok(categoryDTO);
         }
 
-        [Authorize]
+       
         [HttpPost("{id}/restore")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -82,7 +74,7 @@ namespace MyOrderProjectAPI.Controller
             return NoContent();
         }
 
-        [Authorize]
+       
         [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

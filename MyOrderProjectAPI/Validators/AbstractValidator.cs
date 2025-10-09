@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using MyOrderProjectAPI.DTOs;
+using MyOrderProjectAPI.Models;
 
 namespace MyOrderProjectAPI.Validators
 {
@@ -93,5 +94,34 @@ namespace MyOrderProjectAPI.Validators
             //     .NotNull().When(t => t.ModifyDate.HasValue).WithMessage("Güncelleme tarihi boş olamaz.");
         }
     }
+    public class RegisterDTOValidator : AbstractValidator<RegisterDTO>
+    {
+        public RegisterDTOValidator()
+        {
+            // 1. Username (Kullanıcı Adı) Kontrolü
+            RuleFor(x => x.Username)
+                .NotEmpty().WithMessage("Kullanıcı Adı boş bırakılamaz.")
+                .Length(3, 50).WithMessage("Kullanıcı Adı 3 ile 50 karakter arasında olmalıdır.");
 
+            // 2. Password (Şifre) Kontrolü
+            RuleFor(x => x.Password)
+                .NotEmpty().WithMessage("Şifre boş bırakılamaz.")
+                .MinimumLength(6).WithMessage("Şifre en az 6 karakter olmalıdır.")
+                // Gelişmiş güvenlik için eklenebilecek ek kontroller:
+                // .Matches("[A-Z]").WithMessage("Şifre en az bir büyük harf içermelidir.")
+                // .Matches("[0-9]").WithMessage("Şifre en az bir rakam içermelidir.");
+                .MaximumLength(100).WithMessage("Şifre en fazla 100 karakter olabilir.");
+
+            // 3. FullName (Ad Soyad) Kontrolü
+            RuleFor(x => x.FullName)
+                .NotEmpty().WithMessage("Ad Soyad alanı boş bırakılamaz.")
+                .MaximumLength(100).WithMessage("Ad Soyad en fazla 100 karakter olabilir.");
+
+            // 4. Role (Rol) Kontrolü
+            RuleFor(x => x.Role)
+                .IsInEnum().WithMessage("Geçersiz Kullanıcı Rolü belirtildi.")
+                // Opsiyonel: Admin rolünün doğrudan kayıt esnasında atanmasını engellemek için
+                .NotEqual(UserRole.Admin).WithMessage("Admin rolü kayıt sırasında atanamaz.");
+        }
+    }
 }

@@ -9,6 +9,7 @@
 
     namespace MyOrderProjectAPI.Controllers
     {
+        [Authorize]
         [Route("api/[controller]")]
         [ApiController]
         public class TablesController : ControllerBase
@@ -21,7 +22,7 @@
                 _tableService = tableService;
             }
 
-            [Authorize]
+
             [HttpGet]
             public async Task<ActionResult<IEnumerable<TableDetailDTO>>> GetTables()
             {
@@ -29,7 +30,7 @@
                 return Ok(tables); // 200 
             }
 
-            [Authorize]
+
             [HttpGet("{id}")]
             public async Task<ActionResult<TableDetailDTO>> GetTable(int id)
             {
@@ -43,7 +44,7 @@
                 return Ok(table); // 200 
             }
 
-            [Authorize]
+
             [HttpPost]
             public async Task<ActionResult<TableDetailDTO>> PostTable([FromBody] TableCreateUpdateDTO tableDTO)
             {
@@ -52,24 +53,15 @@
                     return BadRequest(ModelState);//400
                 }
 
-                try
-                {
-                    var newTable = await _tableService.CreateTableAsync(tableDTO);
+                // DÜZELTME: Try-catch bloğu kaldırıldı. 
+                // DbUpdateException ve genel Exception hataları Global Handler'a fırlatılacaktır.
+                var newTable = await _tableService.CreateTableAsync(tableDTO);
 
-                    // 201 response code ve URI döndürme işlemi
-                    return CreatedAtAction(nameof(GetTable), new { id = newTable.Id }, newTable);
-                }
-                catch (DbUpdateException ex)
-                {
-                    return Conflict(new { message = "Veritabanında yeni oluşturulurken bir hata oluştu", ex.Message }); // 409 
-                }
-                catch (Exception)
-                {
-                    return StatusCode(500, "Masa oluşturulurken beklenmedik bir hata oluştu.");
-                }
+                // 201 response code ve URI döndürme işlemi
+                return CreatedAtAction(nameof(GetTable), new { id = newTable.Id }, newTable);
             }
 
-            [Authorize]
+
             [HttpPut("{id}")]
             public async Task<IActionResult> PutTable(int id, [FromBody] TableCreateUpdateDTO tableDTO)
             {
@@ -88,68 +80,52 @@
                 return NoContent();
             }
 
-            [Authorize]
+
             [HttpPatch("{id}/status")]
             public async Task<IActionResult> UpdateStatus(int id, [FromBody] Status newStatus)
             {
-                try
-                {
-                    var success = await _tableService.UpdateTableStatusAsync(id, newStatus);
+                // DÜZELTME: Try-catch bloğu kaldırıldı.
+                // ArgumentException Global Handler'a fırlatılacaktır.
+                var success = await _tableService.UpdateTableStatusAsync(id, newStatus);
 
-                    if (!success)
-                    {
-                        return NotFound(); // 404
-                    }
-
-                    return NoContent(); // 204
-                }
-                catch (ArgumentException ex)
+                if (!success)
                 {
-                    // Geçersiz durum değeri gönderilirse
-                    return BadRequest(new { message = ex.Message }); // 400
+                    return NotFound(); // 404
                 }
+
+                return NoContent(); // 204
             }
 
-            [Authorize]
+
             [HttpDelete("{id}")]
             public async Task<IActionResult> DeleteTable(int id)
             {
-                try
-                {
-                    var success = await _tableService.DeleteTableAsync(id);
+                // DÜZELTME: Try-catch bloğu kaldırıldı.
+                // DbUpdateException ve genel hatalar Global Handler'a fırlatılacaktır.
+                var success = await _tableService.DeleteTableAsync(id);
 
-                    if (!success)
-                    {
-                        return NotFound(new { message = $"ID'si {id} olan masa bulunamadı." });
-                    }
-                }
-                catch (DbUpdateException ex)
+                if (!success)
                 {
-                    return StatusCode(500, new { message = $"Id değeri {id} olan kayıt siliniken bir hata oluştu.", error = ex.Message });
+                    return NotFound(new { message = $"ID'si {id} olan masa bulunamadı." });
                 }
-
 
                 return NoContent(); // 204 No Content
             }
 
-            [Authorize]
+
             [HttpPost("{id}/restore")]
             [ProducesResponseType(StatusCodes.Status204NoContent)]
             [ProducesResponseType(StatusCodes.Status404NotFound)]
             [ProducesResponseType(StatusCodes.Status400BadRequest)]
             public async Task<IActionResult> RestoreTable(int id)
             {
-                try
+                // DÜZELTME: Try-catch bloğu kaldırıldı.
+                // InvalidOperationException ve genel hatalar Global Handler'a fırlatılacaktır.
+                var success = await _tableService.RestoreTableAsync(id);
+
+                if (!success)
                 {
-                    var success = await _tableService.RestoreTableAsync(id);
-                    if (!success)
-                    {
-                        return NotFound(new { message = $"ID'si {id} olan masa bulunamadı." }); // 404
-                    }
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return StatusCode(500, new { message = $"Id değeri {id} olan kayıt geri getirilirken bir hata oluştu.", error = ex.Message });
+                    return NotFound(new { message = $"ID'si {id} olan masa bulunamadı." }); // 404
                 }
 
                 return NoContent(); // 204 

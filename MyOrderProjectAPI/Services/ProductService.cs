@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MyOrderProjectAPI.Data;
 using MyOrderProjectAPI.DTOs;
+using MyOrderProjectAPI.Extensions;
 using MyOrderProjectAPI.Models;
 
 namespace MyOrderProjectAPI.Services
@@ -110,17 +111,27 @@ namespace MyOrderProjectAPI.Services
             return true;
         }
 
+        // DÜZELTME: Mevcut SoftDeleteExtensions.Restore() kullanıldı.
         public async Task<bool> RestoreProductAsync(int id)
         {
-            var product = await _context.Products.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
+            // FindAsync metodu, varsayılan olarak IgnoreQueryFilters() çağrısı yapmasa bile
+            // entity'yi veritabanından çekebilir, ancak entity'nin silinmiş olup olmadığını
+            // kontrol etmek için yine de IgnoreQueryFilters() kullanmak en güvenlisidir. 
+            var product = await _context.Products
+                                        .IgnoreQueryFilters()
+                                        .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (product == null || product.RecordStatus)
-            {
-                return false; // Ürün zaten yok
-            }
-            product.RecordStatus = true;
+            if (product is null)
+                return false;
 
+            // Eğer ürün zaten aktifse (geri getirilmişse), tekrar işlem yapma
+            if (product.RecordStatus)
+                return false;
+
+            // SoftDeleteExtensions içindeki Restore metodu kullanılıyor.
+            _context.Restore(product);
             await _context.SaveChangesAsync();
+
             return true;
         }
     }
