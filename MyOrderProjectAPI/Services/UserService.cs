@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MyOrderProjectAPI.Data;
 using MyOrderProjectAPI.DTOs;
+using MyOrderProjectAPI.Extensions;
 using MyOrderProjectAPI.Helpers;
 using MyOrderProjectAPI.Models;
 using MyOrderProjectAPI.Services;
@@ -111,6 +112,8 @@ public class UserService : IUserService
                                  .IgnoreQueryFilters() // Silinmiş kayıtları da çek
                                  .FirstOrDefaultAsync(u => u.Id == userId);
 
+
+        
         if (user == null)
         {
             return false; // Kullanıcı bulunamadı
@@ -122,8 +125,7 @@ public class UserService : IUserService
             return false;
         }
 
-        user.RecordStatus = true;
-        _context.Users.Update(user); // Entity Framework'te değişikliği işaretle
+        _context.Restore(user);
         await _context.SaveChangesAsync();
 
         return true;
