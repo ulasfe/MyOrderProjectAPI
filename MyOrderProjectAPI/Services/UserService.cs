@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using MyOrderProjectAPI.Data;
 using MyOrderProjectAPI.DTOs;
 using MyOrderProjectAPI.Extensions;
@@ -6,14 +7,18 @@ using MyOrderProjectAPI.Helpers;
 using MyOrderProjectAPI.Models;
 using MyOrderProjectAPI.Services;
 using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 public class UserService : IUserService
 {
     private readonly ApplicationDbContext _context;
-
-    public UserService(ApplicationDbContext context)
+    private readonly IConfiguration _configuration;
+    public UserService(ApplicationDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
     public async Task<User?> AuthenticateUserAsync(string username, string password)
@@ -129,5 +134,39 @@ public class UserService : IUserService
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    // ----------------------------------------------------------------------
+    // YARDIMCI METOT: JWT TOKEN ÜRETME MANTIĞI
+    // ----------------------------------------------------------------------
+    public AuthResultDTO GenerateJwtToken(string username, string role)
+    {
+        var claims = new List<Claim>
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, username), // Unique ID veya Username
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Jeton ID
+                new Claim(ClaimTypes.Role,role) // Rolleri Claim olarak ekleme
+            };
+
+        // appsettings.json'dan gizli anahtarı alıyoruz
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        // Token'ın bitiş süresini 1 saat olarak ayarlıyoruz
+        var expiryTime = DateTime.Now.AddHours(1);
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["JwtSettings:Issuer"],
+            audience: _configuration["JwtSettings:Audience"],
+            claims: claims,
+            expires: expiryTime,
+            signingCredentials: credentials);
+
+        return new AuthResultDTO
+        {
+            Token = new JwtSecurityTokenHandler().WriteToken(token),
+            Expiration = expiryTime,
+            Username = username
+        };
     }
 }

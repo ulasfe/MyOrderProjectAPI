@@ -7,6 +7,7 @@ using MyOrderProjectAPI.Tests.Base;
 using MyOrderProjectAPI.Helpers; // Hashing Helper'ı kullanmak için
 using System.Threading.Tasks;
 using Xunit;
+using Microsoft.Extensions.Configuration;
 
 namespace MyOrderProjectAPI.Tests.ServiceTests
 {
@@ -22,7 +23,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
 
         public UserServiceTests() : base()
         {
-            _userService = new UserService(_context);
+            _userService = new UserService(_context, _configuration);
             // Test verisinin BaseTest'te yüklendiği varsayılır.
 
             // Eğer BaseTest'iniz user verisi oluşturmuyorsa, buraya bir kullanıcı ekleyin:

@@ -1,4 +1,5 @@
-﻿using FluentValidation.AspNetCore;
+﻿using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -11,24 +12,31 @@ using Serilog;
 using System.Text;
 using System.Text.Json.Serialization;
 
+
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
+bool isIntegrationTest = builder.Environment.IsEnvironment("IntegrationTest");
+
 // Servis Kay?tlar?
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+if (!isIntegrationTest)
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString)
-);
+    );
+}
 
 builder.Services.AddApplicationServices();
 
 // API Kontrolcüleri için (Art?k en karma??k ayarlara gerek yok)
 builder.Services.AddControllers()
-    .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<CategoryCreateValidator>())
     .AddJsonOptions(options =>
     {
         // Enumlar? metin olarak serile?tirmeyi sa?lar
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+builder.Services.AddValidatorsFromAssemblyContaining<CategoryCreateValidator>(ServiceLifetime.Scoped);
 
 builder.Host.UseSerilog((context, loggerConfiguration) =>
 {
@@ -117,3 +125,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

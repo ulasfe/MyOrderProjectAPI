@@ -76,7 +76,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
                 new OrderItemDTO { ProductId = 2, Quantity = 1 }
             };
 
-            var newOrder = GenerateDummyOrders(1, dummyOrderItems);
+            var newOrder = TestDatabaseSeeder.GenerateDummyOrders(1, dummyOrderItems);
             var orderTable = await _context.Tables.FindAsync(1);
             orderTable.Should().NotBeNull();
             var detailDTO = await _orderService.CreateOrderAsync(newOrder);
@@ -147,7 +147,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
         public async Task CreateOrderAsync_ShouldThrowInvalidOperationException_WhenTableNotFound()
         {
             // Arrange: Mevcut olmayan bir masa ID'si (örn: 99)
-            var nonExistentOrder = GenerateDummyOrders(99, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 1, Quantity = 1 } });
+            var nonExistentOrder = TestDatabaseSeeder.GenerateDummyOrders(99, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 1, Quantity = 1 } });
 
             // Act & Assert: "Masa bulunamadı." hatası bekleriz.
             await Assert.ThrowsAsync<InvalidOperationException>(
@@ -165,7 +165,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
             table.Status = Status.Dolu;
             await _context.SaveChangesAsync();
 
-            var orderDTO = GenerateDummyOrders(fullTableId, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 1, Quantity = 1 } });
+            var orderDTO = TestDatabaseSeeder.GenerateDummyOrders(fullTableId, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 1, Quantity = 1 } });
 
             // Act & Assert: "Masa zaten dolu veya aktif bir siparişe sahip." hatası bekleriz.
             await Assert.ThrowsAsync<InvalidOperationException>(
@@ -177,7 +177,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
         public async Task CreateOrderAsync_ShouldThrowInvalidOperationException_WhenProductNotFound()
         {
             // Arrange: Var olmayan ProductId (örn: 999) kullanıyoruz
-            var orderDTO = GenerateDummyOrders(1, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 999, Quantity = 1 } });
+            var orderDTO = TestDatabaseSeeder.GenerateDummyOrders(1, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 999, Quantity = 1 } });
 
             // Act & Assert: "Ürün ID 999 bulunamadı." hatası bekleriz.
             await Assert.ThrowsAsync<InvalidOperationException>(
@@ -189,7 +189,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
         public async Task CreateOrderAsync_ShouldThrowInvalidOperationException_WhenInsufficientStock()
         {
             // Arrange: Ürün 1'in stoğu 45. 46 adet sipariş etmeye çalışıyoruz.
-            var orderDTO = GenerateDummyOrders(1, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 1, Quantity = 46 } });
+            var orderDTO = TestDatabaseSeeder.GenerateDummyOrders(1, new List<OrderItemDTO> { new OrderItemDTO { ProductId = 1, Quantity = 46 } });
             var product = await _context.Products.FindAsync(1);
 
             // Act & Assert: Yeterli stok yok hatası bekleriz.
@@ -197,7 +197,7 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
                 () => _orderService.CreateOrderAsync(orderDTO)
             );
         }
-          
+
         [Fact]
         public async Task ProcessPaymentAsync_ShouldReturnFalse_WhenOrderIsAlreadyClosed()
         {
@@ -242,11 +242,11 @@ namespace MyOrderProjectAPI.Tests.ServiceTests
                 new OrderItemDTO { ProductId = 2, Quantity = 1 }
             };
 
-            var newOrder = GenerateDummyOrders(tableId, dummyOrderItems);
+            var newOrder = TestDatabaseSeeder.GenerateDummyOrders(tableId, dummyOrderItems);
 
             return await _orderService.CreateOrderAsync(newOrder);
         }
-         
+
 
         [Fact]
         public async Task CancelOrderAsync_ShouldReturnFalse_WhenOrderIsAlreadyCanceled()

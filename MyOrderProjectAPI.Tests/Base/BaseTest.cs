@@ -3,6 +3,7 @@ using global::MyOrderProjectAPI.DTOs;
 using global::MyOrderProjectAPI.Models;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace MyOrderProjectAPI.Tests.Base
 {
@@ -10,7 +11,7 @@ namespace MyOrderProjectAPI.Tests.Base
     {
         protected readonly ApplicationDbContext _context;
         private readonly SqliteConnection _connection;
-
+        protected readonly IConfiguration _configuration;
         public BaseTest()
         {
             _connection = new SqliteConnection("DataSource=:memory:");
@@ -23,47 +24,24 @@ namespace MyOrderProjectAPI.Tests.Base
             _context = new ApplicationDbContext(options);
 
             _context.Database.EnsureCreated();
-
-            SeedData();
+            _configuration = BuildConfiguration();
+            TestDatabaseSeeder.Seed(_context);
         }
 
-        private void SeedData()
+        private IConfiguration BuildConfiguration()
         {
-            _context.Categories.AddRange(
-                new Category { Id = 1, Name = "İçecekler", RecordStatus = true, CreatedDate = DateTime.Now },
-                new Category { Id = 2, Name = "Yiyecekler", RecordStatus = true, CreatedDate = DateTime.Now }
-            );
+            var currentDirectory = Directory.GetCurrentDirectory();
 
-            _context.Products.AddRange(
-                new Product { Name = "Temel Tes Ürünü", Price = 10, RecordStatus = true, CreatedDate = DateTime.Now, CategoryId = 1, StockQuantity = 45 },
-                new Product { Name = "İkinci Ürün", Price = 40, RecordStatus = true, CreatedDate = DateTime.Now, CategoryId = 2, StockQuantity = 70 }
-            );
+            IConfiguration configuration = new ConfigurationBuilder()
+                .SetBasePath(currentDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddEnvironmentVariables()
+                .Build();
 
-            List<Table> toBeAddedTableList = new List<Table>();
-            for (int i = 1; i <= 15; i++)
-            {
-                toBeAddedTableList.Add(
-                    new Table
-                    {
-                        TableNumber = "A" + i.ToString(),
-                        CreatedDate = DateTime.Now,
-                        Status = Status.Boş,
-                        RecordStatus = true
-                    });
-            }
-            _context.Tables.AddRange(toBeAddedTableList);
-
-            _context.SaveChanges();
+            return configuration;
         }
 
-        protected OrderCreateDTO GenerateDummyOrders(int tableId, List<OrderItemDTO> orderItemsDTO)
-        {
-            return new OrderCreateDTO
-            {
-                TableId = tableId,
-                Items = orderItemsDTO
-            };
-        }
+      
 
         public void Dispose()
         {

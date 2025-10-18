@@ -20,5 +20,9 @@ namespace MyOrderProjectAPI.Services
         /// Kullanıcının RecordStatus'unu true yaparak kaydı geri yükler.
         /// </summary>
         Task<bool> RestoreUserAsync(int userId);
+        /// <summary>
+        /// Kullanıcı için Jwt jetonu oluşturulmasını sağlar
+        /// </summary>
+        AuthResultDTO GenerateJwtToken(string username, string role);
     }
 }

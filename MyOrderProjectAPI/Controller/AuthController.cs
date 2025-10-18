@@ -13,14 +13,12 @@ namespace MyOrderProjectAPI.Controller
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly IConfiguration _configuration;
         // NOT: Gerçek projede ApplicationDbContext yerine UserService kullanılmalıdır!
         // private readonly IUserService _userService; 
 
-        public AuthController(IConfiguration configuration, IUserService userService)
+        public AuthController( IUserService userService)
         {
             _userService = userService;
-            _configuration = configuration;
         }
 
         [HttpPost("login")]
@@ -41,7 +39,7 @@ namespace MyOrderProjectAPI.Controller
                 return Unauthorized(new { message = "Kullanıcı adı veya şifre yanlış." }); // 401
             }
 
-            var tokenResult = GenerateJwtToken(credentials.Username, new List<string> { "User" });
+            var tokenResult = _userService.GenerateJwtToken(credentials.Username, user.Role.ToString());
 
             return Ok(tokenResult);
         }
@@ -80,41 +78,7 @@ namespace MyOrderProjectAPI.Controller
             }
         }
 
-        // ----------------------------------------------------------------------
-        // YARDIMCI METOT: JWT TOKEN ÜRETME MANTIĞI
-        // ----------------------------------------------------------------------
-        private AuthResultDTO GenerateJwtToken(string username, List<string> roles)
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, username), // Unique ID veya Username
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()) // Jeton ID
-            };
-
-            // Rolleri Claim olarak ekleme
-            roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));
-
-            // appsettings.json'dan gizli anahtarı alıyoruz
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            // Token'ın bitiş süresini 1 saat olarak ayarlıyoruz
-            var expiryTime = DateTime.Now.AddHours(1);
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["JwtSettings:Issuer"],
-                audience: _configuration["JwtSettings:Audience"],
-                claims: claims,
-                expires: expiryTime,
-                signingCredentials: credentials);
-
-            return new AuthResultDTO
-            {
-                Token = new JwtSecurityTokenHandler().WriteToken(token),
-                Expiration = expiryTime,
-                Username = username
-            };
-        }
+        
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
